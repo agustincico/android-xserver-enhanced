@@ -281,7 +281,7 @@ public class Client extends Thread {
      * @param bytesRemaining Bytes yet to be read in the request.
      * @throws IOException
      */
-    private void processRequest(byte opcode, byte arg, int bytesRemaining) throws IOException {
+    public void processRequest(byte opcode, byte arg, int bytesRemaining) throws IOException {
         _sequenceNumber++;
         switch (opcode) {
             case RequestCode.CreateWindow:

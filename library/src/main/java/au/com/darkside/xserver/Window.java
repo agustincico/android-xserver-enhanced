@@ -2891,4 +2891,86 @@ public class Window extends Resource {
     public Property getProperty(int id) {
         return _properties.get(id);
     }
+
+    /**
+     * Get the list of child windows.
+     * 
+     * @return Vector of child windows, or null if none.
+     */
+    public Vector<Window> getChildren() {
+        if (_children == null || _children.isEmpty()) {
+            return null;
+        }
+        return new Vector<Window>(_children);
+    }
+    
+    /**
+     * Resize this window.
+     * 
+     * @param width New width.
+     * @param height New height.
+     */
+    public void resize(int width, int height) {
+        int currentWidth = _irect.right - _irect.left;
+        int currentHeight = _irect.bottom - _irect.top;
+        
+        if (currentWidth == width && currentHeight == height) {
+            return; // Ya tiene ese tamaño
+        }
+        
+        // Actualizar el rectángulo interno
+        _irect.right = _irect.left + width;
+        _irect.bottom = _irect.top + height;
+        
+        // Actualizar el rectángulo externo (incluyendo bordes)
+        int border = 2 * _borderWidth;
+        _orect.right = _orect.left + width + border;
+        _orect.bottom = _orect.top + height + border;
+        
+        // Invalidar bitmap de background para que se recree
+        if (_backgroundBitmap != null) {
+            _backgroundBitmap = null;
+        }
+    }
+    
+    /**
+     * Send a ConfigureNotify event to this window.
+     */
+    public void sendConfigureNotify() {
+        Client c = getClient();
+        if (c == null || !c.isConnected()) {
+            return;
+        }
+        
+        try {
+            int width = _irect.right - _irect.left;
+            int height = _irect.bottom - _irect.top;
+            
+            InputOutput io = c.getInputOutput();
+            synchronized (io) {
+                io.writeByte((byte) 22); // ConfigureNotify event
+                io.writeByte((byte) 0);  // Unused
+                io.writeShort((short) (c.getSequenceNumber() & 0xffff));
+                io.writeInt(_id); // Event window
+                io.writeInt(_id); // Window
+                
+                if (_parent != null) {
+                    io.writeInt(_parent.getId()); // Above-sibling
+                } else {
+                    io.writeInt(0); // No sibling
+                }
+                
+                io.writeShort((short) _irect.left); // X
+                io.writeShort((short) _irect.top);  // Y
+                io.writeShort((short) width);       // Width
+                io.writeShort((short) height);      // Height
+                io.writeShort((short) _borderWidth); // Border width
+                io.writeByte((byte) 0); // Override-redirect
+                io.writePadBytes(5);    // Unused
+            }
+            io.flush();
+        } catch (IOException e) {
+            // El cliente probablemente se desconectó
+        }
+    }
 }

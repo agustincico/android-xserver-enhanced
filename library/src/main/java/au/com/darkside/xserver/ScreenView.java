@@ -762,13 +762,30 @@ public class ScreenView extends View {
      * @param oldWidth  The old width.
      * @param oldHeight The old height.
      */
-    @Override
-    protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
-        super.onSizeChanged(width, height, oldWidth, oldHeight);
-        if (!_xServer.isStarted()) {
-            initializeXserver(width, height);
+ @Override
+protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+    super.onSizeChanged(width, height, oldWidth, oldHeight);
+    
+    Log.i("ScreenView", "onSizeChanged: " + oldWidth + "x" + oldHeight + " -> " + width + "x" + height);
+    
+    if (!_xServer.isStarted()) {
+        initializeXserver(width, height);
+    } else if (_rootWindow != null) {
+        // El servidor ya está iniciado, necesitamos redimensionar
+        Log.i("ScreenView", "Redimensionando root window y notificando clientes");
+        
+        synchronized (_xServer) {
+            // Redimensionar la ventana root
+            _rootWindow.resize(width, height);
+            
+            // Notificar a todos los clientes del cambio de tamaño
+            notifyClientsScreenResize(width, height);
         }
+        
+        // Forzar redibujado
+        postInvalidate();
     }
+}
 
     protected void initializeXserver(int width, int height) {
 
@@ -2033,4 +2050,30 @@ public class ScreenView extends View {
     public void setOnTouchCallback(ScreenViewOnTouchCallback callback) {
         this.onTouchCallback = callback;
     }
+    /**
+ * Notifica a todos los clientes que la pantalla cambió de tamaño
+ */
+private void notifyClientsScreenResize(int width, int height) {
+    if (_rootWindow == null) return;
+    
+    try {
+        // Enviar ConfigureNotify a todas las ventanas top-level (hijas directas de root)
+        Vector<Window> children = _rootWindow.getChildren();
+        if (children != null) {
+            for (Window child : children) {
+                if (child != null && child.isViewable()) {
+                    Log.i("ScreenView", "Enviando ConfigureNotify a ventana: " + child.getId());
+                    
+                    // Redimensionar la ventana al tamaño de la pantalla
+                    child.resize(width, height);
+                    
+                    // Enviar evento ConfigureNotify
+                    child.sendConfigureNotify();
+                }
+            }
+        }
+    } catch (Exception e) {
+        Log.e("ScreenView", "Error notificando resize: " + e.getMessage(), e);
+    }
+}
 }

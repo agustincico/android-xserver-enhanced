@@ -39,7 +39,7 @@ public class XServer {
     public final String vendor = "android-xserver";
     public final int ReleaseNumber = 131;
 
-    private final int _default_depth = 24;
+    private final int _default_depth = 32;
     private final int _port;
     private final Context _context;
     private final String _windowManagerClass;
@@ -128,8 +128,10 @@ public class XServer {
 
         cmap.setInstalled(true);
         addResource(cmap);
-
-        _rootVisual = new Visual(1, _default_depth);
+        // IMPORTANT:
+        // Squeak VM assumes TrueColor(#4) 32bpp visuals.
+        // Using any other depth causes blank screen.
+        _rootVisual = new Visual(4, 32);
         Atom.registerPredefinedAtoms(this);
 
         _timestamp = System.currentTimeMillis();
